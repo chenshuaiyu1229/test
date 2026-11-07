@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>班牌小组件</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  background:transparent;
+  font-family:"Microsoft YaHei",PingFang SC,sans-serif;
+  overflow:hidden;
+  /* 页面整体居中基础 */
+  width:100vw;height:100vh;
+  display:flex;align-items:center;justify-content:center;
+}
+#container{
+  width:410px;height:240px;
+  border-radius:12px;overflow:hidden;
+  background:rgba(12,16,24,0.85);
+  color:#f0f4f8;
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  position:relative;
+}
+/* 位置模式：居中（默认） */
+#container.position-center{
+  position:relative;
+}
+/* 位置模式：右下角悬浮（原班牌模式，改CONFIG即可切换） */
+#container.position-bottom-right{
+  position:fixed;right:24px;bottom:24px;
+}
+#sliderWrap{width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;}
+#slider{
+  height:100%;display:flex;
+  will-change:transform;
+  transition:none;
+}
+/* 卡片内容统一垂直+水平居中 */
+.slide{
+  flex-shrink:0;width:410px;height:240px;padding:18px 24px;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.egg-slide{
+  background:rgba(8,10,14,0.92);
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;color:#b0b8c4;text-align:center;
+}
+.title{font-size:18px;margin-bottom:14px;color:#73b8ff;font-weight:500;text-align:center}
+.curr-state{font-size:22px;margin-bottom:10px;font-weight:bold;text-align:center}
+.lesson-item{font-size:20px;line-height:1.6;text-align:center}
+.tag-active{color:#ff6b6b}
+.tag-next{color:#4ade80}
+.q-title{font-size:17px;margin-bottom:12px;line-height:1.4;text-align:center}
+.op{
+  padding:10px 12px;margin:6px 0;border-radius:8px;
+  background:rgba(255,255,255,0.08);
+  font-size:16px;
+}
+.op:active{background:rgba(255,255,255,0.25);}
+.op.right{background:rgba(74,222,128,0.25);}
+.op.wrong{background:rgba(255,107,107,0.25);}
+.opt-cooling .op{opacity:0.5;pointer-events:none;}
+.cooltip{font-size:14px;color:#aaa;margin-top:10px;text-align:center}
+.power-dots{display:flex;gap:6px;margin-top:8px;justify-content:center}
+.dot{width:14px;height:14px;border-radius:50%;background:#334155}
+.dot.on{background:#38bdf8}
+/* 天气内容全部居中 */
+#weatherBox{text-align:center}
+.weather-row{display:flex;justify-content:space-between;margin-top:12px;gap:8px}
+.weather-day{text-align:center;flex:1}
+.w-icon{font-size:26px;margin-bottom:4px}
+.w-txt{font-size:14px;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="container" class="position-center">
+  <div id="sliderWrap">
+    <div id="slider">
+      <div class="slide">
+        <div class="title">📋 当前课程</div>
+        <div class="curr-state" id="lessonState">--</div>
+        <div class="lesson-item" id="lessonInfo"></div>
+      </div>
+      <div class="slide">
+        <div class="title">❓每日一题</div>
+        <div class="q-title" id="qText">加载题目…</div>
+        <div id="optWrap"></div>
+        <div class="cooltip" id="coolTip"></div>
+        <div class="power-dots" id="powerDots"></div>
+      </div>
+      <div class="slide">
+        <div class="title">🌤️未来三日天气</div>
+        <div id="weatherBox">正在获取天气…</div>
+      </div>
+      <div class="slide egg-slide">列表结束。</div>
+      <div class="slide egg-slide">再划也没东西，别试了。</div>
+      <div class="slide egg-slide">试出来了。现在可以回去写作业了吧？</div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+// =========课表 高2029届14班 2026秋学期【完全保留未动】=========
+const schedule = {
+  dayNames:["周日","周一","周二","周三","周四","周五","周六"],
+  dayTable:[
+    [],
+    [
+      {s:"08:00",e:"08:40",sub:"英语"},
+      {s:"08:50",e:"09:30",sub:"英语"},
+      {s:"10:00",e:"10:40",sub:"数学"},
+      {s:"10:45",e:"11:25",sub:"地理"},
+      {s:"11:35",e:"12:10",sub:"语文"},
+      {s:"14:30",e:"15:10",sub:"化学"},
+      {s:"15:20",e:"16:00",sub:"生物"},
+      {s:"16:10",e:"16:50",sub:"物理"},
+      {s:"17:20",e:"17:40",sub:"班会"}
+    ],
+    [
+      {s:"08:00",e:"08:40",sub:"英语"},
+      {s:"08:50",e:"09:30",sub:"历史"},
+      {s:"10:00",e:"10:40",sub:"物理"},
+      {s:"10:45",e:"11:25",sub:"数学"},
+      {s:"11:35",e:"12:10",sub:"数学"},
+      {s:"14:30",e:"15:10",sub:"体育"},
+      {s:"15:20",e:"16:00",sub:"语文"},
+      {s:"16:10",e:"16:50",sub:"政治"},
+      {s:"17:20",e:"17:40",sub:"自习/体锻"}
+    ],
+    [
+      {s:"08:00",e:"08:40",sub:"英语"},
+      {s:"08:50",e:"09:30",sub:"物理"},
+      {s:"10:00",e:"10:40",sub:"语文"},
+      {s:"10:45",e:"11:25",sub:"语文"},
+      {s:"11:35",e:"12:10",sub:"音乐/心理"},
+      {s:"14:30",e:"15:10",sub:"数学"},
+      {s:"15:20",e:"16:00",sub:"体育"},
+      {s:"16:10",e:"16:50",sub:"历史"},
+      {s:"17:20",e:"17:40",sub:"自习/体锻_2"}
+    ],
+    [
+      {s:"08:00",e:"08:40",sub:"语文"},
+      {s:"08:50",e:"09:30",sub:"化学"},
+      {s:"10:00",e:"10:40",sub:"地理"},
+      {s:"10:45",e:"11:25",sub:"政治"},
+      {s:"11:35",e:"12:10",sub:"物理"},
+      {s:"14:30",e:"15:10",sub:"自习/美术"},
+      {s:"15:20",e:"16:00",sub:"英语"},
+      {s:"16:10",e:"16:50",sub:"数学"},
+      {s:"17:20",e:"17:40",sub:"自习"}
+    ],
+    [
+      {s:"08:00",e:"08:40",sub:"数学"},
+      {s:"08:50",e:"09:30",sub:"语文"},
+      {s:"10:00",e:"10:40",sub:"化学"},
+      {s:"10:45",e:"11:25",sub:"历史"},
+      {s:"11:35",e:"12:10",sub:"物理"},
+      {s:"14:30",e:"15:10",sub:"生物"},
+      {s:"15:20",e:"16:00",sub:"英语"},
+      {s:"16:10",e:"16:50",sub:"考试"},
+      {s:"17:20",e:"17:40",sub:"自习_2"}
+    ],
+    []
+  ],
+  night:[
+    [
+      {s:"19:00",e:"19:50",sub:"物理"},
+      {s:"20:00",e:"20:50",sub:"历史"},
+      {s:"21:00",e:"21:50",sub:"历史"}
+    ],
+    [
+      {s:"19:00",e:"19:50",sub:"英语"},
+      {s:"20:00",e:"20:50",sub:"语文"},
+      {s:"21:00",e:"21:50",sub:"语文"}
+    ],
+    [
+      {s:"19:00",e:"19:50",sub:"地理"},
+      {s:"20:00",e:"20:50",sub:"政治"},
+      {s:"21:00",e:"21:50",sub:"政治"}
+    ],
+    [
+      {s:"19:00",e:"19:50",sub:"语文"},
+      {s:"20:00",e:"20:50",sub:"数学"},
+      {s:"21:00",e:"21:50",sub:"数学"}
+    ],
+    [
+      {s:"19:00",e:"19:50",sub:"化学"},
+      {s:"20:00",e:"20:50",sub:"生物"},
+      {s:"21:00",e:"21:50",sub:"生物"}
+    ],
+    [
+      {s:"19:00",e:"19:50",sub:"数学"},
+      {s:"20:00",e:"20:50",sub:"英语"},
+      {s:"21:00",e:"21:50",sub:"英语"}
+    ],
+    []
+  ]
+};
+
+function hm2min(str){let [h,m]=str.split(":").map(Number);return h*60+m;}
+function getNowMin(){let d=new Date();return d.getHours()*60+d.getMinutes();}
+
+function getDayAllLessons(dayOfWeek){
+  let lessons = [];
+  if(schedule.dayTable[dayOfWeek]?.length) lessons = lessons.concat(schedule.dayTable[dayOfWeek]);
+  if(schedule.night[dayOfWeek]?.length) lessons = lessons.concat(schedule.night[dayOfWeek]);
+  lessons.sort((a,b) => hm2min(a.s) - hm2min(b.s));
+  return lessons;
+}
+
+function findNextLesson(fromDayOfWeek, fromTimeMin){
+  for(let i=0; i<7; i++){
+    const day = (fromDayOfWeek + i) % 7;
+    const dayLessons = getDayAllLessons(day);
+    if(dayLessons.length === 0) continue;
+    if(i === 0){
+      for(let j=0; j<dayLessons.length; j++){
+        if(hm2min(dayLessons[j].s) > fromTimeMin){
+          return { day, lesson: dayLessons[j], isToday: true };
+        }
+      }
+    }else{
+      return { day, lesson: dayLessons[0], isToday: false };
+    }
+  }
+  return null;
+}
+
+function updateLesson(){
+  const nowMin=getNowMin();
+  const dw=new Date().getDay();
+  const stEl=document.getElementById("lessonState");
+  const infoEl=document.getElementById("lessonInfo");
+  const todayLessons = getDayAllLessons(dw);
+  let active = null;
+  for(let i=0; i<todayLessons.length; i++){
+    const it=todayLessons[i];
+    const s=hm2min(it.s),e=hm2min(it.e);
+    if(nowMin>=s && nowMin<=e){active=it;break;}
+  }
+  if(active){
+    stEl.innerHTML='<span class="tag-active">🔴 正在上课</span>';
+    infoEl.textContent=active.sub;
+    return;
+  }
+  const nextInfo = findNextLesson(dw, nowMin);
+  if(nextInfo){
+    if(nextInfo.isToday){
+      stEl.innerHTML='<span class="tag-next">🟢 即将上课</span>';
+    }else{
+      const dayName = schedule.dayNames[nextInfo.day];
+      stEl.innerHTML=`<span class="tag-next">🟢 下一节（${dayName}）</span>`;
+    }
+    infoEl.textContent=nextInfo.lesson.sub;
+  }else{
+    stEl.textContent="暂无课程";
+    infoEl.textContent="";
+  }
+}
+setInterval(updateLesson,15000);
+updateLesson();
+
+// ========= 全局配置区 =========
+const CONFIG = {
+  position: 'center', // 组件位置：'center'=屏幕居中，'bottom-right'=右下角悬浮
+  slideWidth: 410,
+  mainCardCount: 3,
+  animDuration: 480,
+  animEasing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  boundaryDamping: 0.35,
+  eggEnterDamping: 0.2,
+  flickVelocity: 0.4,
+  weatherRetryInterval: 30 * 60 * 1000, // 天气失败重试间隔（30分钟）
+  questionSwitchDelay: 1100,
+  coolDuration: 10 * 60 * 1000,
+  // 天气配置
+  weather: {
+    cityName: '重庆',
+    latitude: 29.56,
+    longitude: 106.58,
+    timeout: 10000, // 请求超时（10秒）
+    cacheHours: 6, // 天气缓存时长（小时）
+    // 和风天气Key（推荐！国内访问稳定，免费申请：https://dev.qweather.com/）
+    // 填了Key会优先使用和风天气，速度快、稳定
+    qweatherKey: ''
+  }
+};
+
+// 应用位置配置
+const container = document.getElementById('container');
+container.className = `position-${CONFIG.position}`;
+
+// ========= 滑动手势 =========
+const slider=document.getElementById("slider");
+const slideCount=slider.children.length;
+const mainCardMaxOffset = -(CONFIG.mainCardCount - 1) * CONFIG.slideWidth;
+let currentIdx=0;
+let isDragging=false;
+let dragStartX=0;
+let dragStartOffset=0;
+let startTime=0;
+let startX=0;
+
+function getCurrentTranslateX(){
+  const style = window.getComputedStyle(slider);
+  const matrix = new DOMMatrix(style.transform);
+  return matrix.m41;
+}
+function setOffset(x){slider.style.transform=`translateX(${x}px)`;}
+
+function animateToIndex(idx){
+  idx=Math.max(0,Math.min(slideCount-1,idx));
+  currentIdx=idx;
+  const target=-idx*CONFIG.slideWidth;
+  slider.style.transition=`transform ${CONFIG.animDuration}ms ${CONFIG.animEasing}`;
+  setOffset(target);
+  slider.removeEventListener('transitionend', onTransitionEnd);
+  slider.addEventListener('transitionend', onTransitionEnd, { once: true });
+}
+function onTransitionEnd(e){
+  if(e.propertyName === 'transform'){
+    slider.style.transition = 'none';
+  }
+}
+
+slider.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  e.stopPropagation();
+  isDragging=true;
+  dragStartX=e.clientX;
+  dragStartOffset = getCurrentTranslateX();
+  startTime=performance.now();
+  startX=e.clientX;
+  slider.style.transition = 'none';
+  slider.setPointerCapture(e.pointerId);
+});
+
+slider.addEventListener("pointermove",e=>{
+  if(!isDragging) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const dx=e.clientX - dragStartX;
+  let newX=dragStartOffset + dx;
+  if(newX>0) newX = newX * CONFIG.boundaryDamping;
+  if(newX < mainCardMaxOffset && dragStartOffset >= mainCardMaxOffset){
+    const excess = newX - mainCardMaxOffset;
+    newX = mainCardMaxOffset + excess * CONFIG.eggEnterDamping;
+  }
+  const maxLeft= -(slideCount-1)*CONFIG.slideWidth;
+  if(newX < maxLeft) newX = maxLeft + (newX - maxLeft)*CONFIG.boundaryDamping;
+  setOffset(newX);
+});
+
+slider.addEventListener("pointerup",e=>{
+  if(!isDragging) return;
+  isDragging=false;
+  e.stopPropagation();
+  const dx=e.clientX - startX;
+  const dt=performance.now() - startTime;
+  const vx=dx/dt;
+  let predIdx=currentIdx;
+  if(Math.abs(vx)>CONFIG.flickVelocity){
+    predIdx=vx>0 ? currentIdx-1 : currentIdx+1;
+  }else{
+    const off= -currentIdx*CONFIG.slideWidth + dx;
+    predIdx=Math.round(-off / CONFIG.slideWidth);
+  }
+  animateToIndex(predIdx);
+  slider.releasePointerCapture(e.pointerId);
+});
+
+slider.addEventListener("pointercancel",()=>{
+  if(isDragging){
+    isDragging=false;
+    animateToIndex(currentIdx);
+  }
+});
+
+// =========每日一题==========
+const questionBank=[
+  {q:"'劝君更尽一杯酒'下一句是？",opts:["西出阳关无故人","天下谁人不识君","春风不度玉门关","古来征战几人回"],ans:0},
+  {q:"《师说》的作者是？",opts:["韩愈","柳宗元","欧阳修","苏轼"],ans:0},
+  {q:"鲁迅的回忆性散文集是？",opts:["《呐喊》","《朝花夕拾》","《彷徨》","《野草》"],ans:1},
+  {q:"'今宵酒醒何处？杨柳岸，晓风残月'出自？",opts:["苏轼《念奴娇》","柳永《雨霖铃》","李清照《声声慢》","辛弃疾《永遇乐》"],ans:1},
+  {q:"下列哪个不是李白的作品？",opts:["《蜀道难》","《将进酒》","《茅屋为秋风所破歌》","《梦游天姥吟留别》"],ans:2},
+  {q:"集合{1,2,3}的子集总个数是？",opts:["6","7","8","9"],ans:2},
+  {q:"log₂8 等于多少？",opts:["2","3","4","5"],ans:1},
+  {q:"不等式 2x - 1 > 3 的解集是？",opts:["x>1","x>2","x<2","x>4"],ans:1},
+  {q:"下列哪个是奇函数？",opts:["f(x)=x²","f(x)=x³","f(x)=|x|","f(x)=2ˣ"],ans:1},
+  {q:"函数f(x)=√x 的定义域是？",opts:["全体实数","x≥0","x>0","x≤0"],ans:1},
+  {q:"'environment' 的中文意思是？",opts:["政府","环境","设备","公司"],ans:1},
+  {q:"'go' 的过去式是？",opts:["goed","went","gone","going"],ans:1},
+  {q:"'beautiful' 的比较级是？",opts:["beautifuler","more beautiful","most beautiful","beautifuller"],ans:1},
+  {q:"'knife' 的复数形式是？",opts:["knifes","knives","knifees","knife"],ans:1},
+  {q:"'I have been to Beijing' 是什么时态？",opts:["一般过去时","现在完成时","过去完成时","一般将来时"],ans:1},
+  {q:"速度的国际单位是？",opts:["km/h","m/s","cm/s","m/min"],ans:1},
+  {q:"牛顿第一定律又叫？",opts:["加速度定律","惯性定律","作用力与反作用力定律","万有引力定律"],ans:1},
+  {q:"自由落体加速度g约为？",opts:["8m/s²","10m/s²","12m/s²","15m/s²"],ans:1},
+  {q:"下列哪个是矢量？",opts:["质量","时间","速度","温度"],ans:2},
+  {q:"匀速直线运动的位移公式是？",opts:["s=vt","s=½at²","s=v₀t+½at²","v²-v₀²=2as"],ans:0},
+  {q:"物质的量的单位是？",opts:["克","摩尔","升","个"],ans:1},
+  {q:"水的化学式是？",opts:["H₂O","CO₂","O₂","NaCl"],ans:0},
+  {q:"下列哪个是混合物？",opts:["蒸馏水","空气","氧气","氯化钠"],ans:1},
+  {q:"Na元素的相对原子质量约为？",opts:["11","23","35.5","40"],ans:1},
+  {q:"下列气体能使澄清石灰水变浑浊的是？",opts:["氧气","氮气","二氧化碳","氢气"],ans:2},
+  {q:"细胞的能量工厂是？",opts:["细胞核","线粒体","叶绿体","核糖体"],ans:1},
+  {q:"新中国成立的年份是？",opts:["1945年","1949年","1950年","1956年"],ans:1},
+  {q:"我国的根本政治制度是？",opts:["民族区域自治制度","人民代表大会制度","基层群众自治制度","多党合作制度"],ans:1},
+  {q:"地球自转一周的时间约为？",opts:["12小时","24小时","30天","365天"],ans:1},
+  {q:"什么东西越洗越脏？",opts:["抹布","水","衣服","地板"],ans:1},
+  {q:"什么路最窄？",opts:["胡同","冤家路窄","楼梯","独木桥"],ans:1},
+  {q:"什么车寸步难行？",opts:["自行车","风车","火车","汽车"],ans:1}
+];
+let power=3;
+let coolEnd=0;
+let curQ=null;
+const qText=document.getElementById("qText");
+const optWrap=document.getElementById("optWrap");
+const coolTip=document.getElementById("coolTip");
+const powerDots=document.getElementById("powerDots");
+let coolTimer = null;
+
+function renderDots(){
+  powerDots.innerHTML="";
+  for(let i=0;i<3;i++){
+    const d=document.createElement("div");
+    d.className="dot"+(i<power?" on":"");
+    powerDots.appendChild(d);
+  }
+}
+function pickQuestion(){
+  curQ=questionBank[Math.floor(Math.random()*questionBank.length)];
+  qText.textContent=curQ.q;
+  optWrap.innerHTML="";
+  curQ.opts.forEach((o,idx)=>{
+    const div=document.createElement("div");
+    div.className="op";
+    div.dataset.idx=idx;
+    div.textContent=o;
+    optWrap.appendChild(div);
+  })
+}
+
+optWrap.onclick=function(e){
+  const el=e.target.closest(".op");
+  if(!el) return;
+  const selected=Number(el.dataset.idx);
+  const now=Date.now();
+  if(now<coolEnd||power<=0) return;
+  power--;
+  renderDots();
+  if(selected===curQ.ans){
+    qText.textContent="✅回答正确";
+    el.classList.add("right");
+  }else{
+    qText.textContent="❌回答错误";
+    el.classList.add("wrong");
+  }
+  if(power<=0){
+    coolEnd=now + CONFIG.coolDuration;
+    coolTip.textContent="已耗尽次数，冷却10分钟";
+    optWrap.classList.add('opt-cooling');
+  }
+  setTimeout(pickQuestion,CONFIG.questionSwitchDelay);
+}
+
+function tickCool(){
+  const now=Date.now();
+  if(now < coolEnd){
+    const remain=Math.ceil((coolEnd-now)/1000);
+    const m=Math.floor(remain/60);
+    const s=remain%60;
+    coolTip.textContent=`冷却剩余 ${m}分${s}秒`;
+  }else{
+    if(coolEnd > 0){
+      coolEnd = 0;
+      power = 3;
+      renderDots();
+      optWrap.classList.remove('opt-cooling');
+      coolTip.textContent = "";
+    }
+  }
+}
+renderDots();
+pickQuestion();
+coolTimer = setInterval(tickCool,1000);
+
+// ======天气模块【重写：多源 fallback + 缓存 + 超时 + 国内优化】======
+const weatherBox=document.getElementById("weatherBox");
+let weatherRetryTimer = null;
+let weatherLoadFailed = false;
+const WEATHER_CACHE_KEY = 'class_widget_weather_cache';
+
+// 天气图标映射
+const weatherIcons = {
+  // 和风天气图标码
+  100:'☀️', 101:'🌤️', 102:'⛅', 103:'☁️', 104:'☁️',
+  300:'🌧️', 301:'🌧️', 302:'🌧️', 306:'🌧️', 307:'🌧️',
+  400:'❄️', 401:'❄️', 402:'❄️',
+  // Open-Meteo 图标码
+  0:'☀️',1:'🌤️',2:'⛅',3:'☁️',
+  51:'🌧️',53:'🌧️',55:'🌧️',
+  61:'🌧️',63:'🌧️',65:'🌧️',
+  71:'❄️',
+  // wttr.in 图标码
+  'Sunny':'☀️', 'Partly cloudy':'🌤️', 'Cloudy':'⛅', 'Overcast':'☁️',
+  'Light rain':'🌧️', 'Moderate rain':'🌧️', 'Heavy rain':'🌧️', 'Patchy rain possible':'🌧️',
+  'Light snow':'❄️', 'Moderate snow':'❄️', 'Heavy snow':'❄️'
+};
+
+// 带超时的fetch
+function fetchWithTimeout(url, options = {}, timeout = 10000){
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('请求超时')), timeout)
+    )
+  ]);
+}
+
+// 从本地缓存获取天气
+function getWeatherCache(){
+  try{
+    const cache = localStorage.getItem(WEATHER_CACHE_KEY);
+    if(!cache) return null;
+    const data = JSON.parse(cache);
+    // 缓存未过期
+    if(Date.now() - data.timestamp < CONFIG.weather.cacheHours * 3600 * 1000){
+      return data;
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+// 保存天气到本地缓存
+function saveWeatherCache(data){
+  try{
+    localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      ...data
+    }));
+  }catch(e){}
+}
+
+// 渲染天气
+function renderWeather(days){
+  let html='<div class="weather-row">';
+  days.forEach(day=>{
+    html+=`
+    <div class="weather-day">
+      <div class="w-icon">${day.icon}</div>
+      <div class="w-txt">${day.date}</div>
+      <div class="w-txt">${day.tempMin}~${day.tempMax}°C</div>
+      <div class="w-txt" style="color:#94a3b8;font-size:12px">${day.text}</div>
+    </div>`;
+  });
+  html+="</div>";
+  weatherBox.innerHTML=html;
+}
+
+// 接口1：和风天气（国内首选，需配置Key）
+async function loadFromQWeather(){
+  if(!CONFIG.weather.qweatherKey) throw new Error('未配置和风天气Key');
+  const url = `https://devapi.qweather.com/v7/weather/3d?location=${CONFIG.weather.longitude.toFixed(2)},${CONFIG.weather.latitude.toFixed(2)}&key=${CONFIG.weather.qweatherKey}`;
+  const res = await fetchWithTimeout(url, {}, CONFIG.weather.timeout);
+  if(!res.ok) throw new Error('和风天气请求失败');
+  const json = await res.json();
+  if(json.code !== '200') throw new Error('和风天气返回错误');
+  
+  const days = json.daily.map(item=>({
+    date: item.fxDate.slice(5),
+    tempMin: item.tempMin,
+    tempMax: item.tempMax,
+    text: item.textDay,
+    icon: weatherIcons[item.iconDay] || '🌤️'
+  }));
+  return days;
+}
+
+// 接口2：Open-Meteo（国外，无需Key）
+async function loadFromOpenMeteo(){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.weather.latitude}&longitude=${CONFIG.weather.longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Asia%2FShanghai`;
+  const res = await fetchWithTimeout(url, {}, CONFIG.weather.timeout);
+  if(!res.ok) throw new Error('Open-Meteo请求失败');
+  const json = await res.json();
+  const daily = json.daily;
+  const days = [];
+  for(let i=0;i<3;i++){
+    const wCode = daily.weathercode[i];
+    days.push({
+      date: daily.time[i].slice(5),
+      tempMin: Math.round(daily.temperature_2m_min[i]),
+      tempMax: Math.round(daily.temperature_2m_max[i]),
+      text: wCode <= 2 ? '晴' : wCode <= 3 ? '多云' : wCode <= 65 ? '小雨' : '未知',
+      icon: weatherIcons[wCode] || '🌤️'
+    });
+  }
+  return days;
+}
+
+// 接口3：wttr.in（国外备用，无需Key）
+async function loadFromWttr(){
+  const url = `https://wttr.in/${encodeURIComponent(CONFIG.weather.cityName)}?format=j1&lang=zh`;
+  const res = await fetchWithTimeout(url, {}, CONFIG.weather.timeout);
+  if(!res.ok) throw new Error('wttr.in请求失败');
+  const json = await res.json();
+  const days = [];
+  for(let i=0;i<3;i++){
+    const day = json.weather[i];
+    const desc = day.hourly[4].weatherDesc[0].value;
+    days.push({
+      date: day.date.slice(5),
+      tempMin: day.mintempC,
+      tempMax: day.maxtempC,
+      text: desc || '未知',
+      icon: weatherIcons[desc] || '🌤️'
+    });
+  }
+  return days;
+}
+
+// 主加载函数：依次尝试所有接口
+async function loadWeather(){
+  weatherLoadFailed = false;
+  
+  // 优先读缓存
+  const cache = getWeatherCache();
+  if(cache){
+    renderWeather(cache.days);
+    // 有缓存的情况下后台静默更新，不影响体验
+    refreshWeatherInBackground();
+    return;
+  }
+
+  weatherBox.textContent = "正在获取天气…";
+  try{
+    let days = null;
+    // 按优先级尝试接口
+    if(CONFIG.weather.qweatherKey){
+      try{ days = await loadFromQWeather(); }
+      catch(e){ console.warn('和风天气失败，尝试备用接口1'); }
+    }
+    if(!days){
+      try{ days = await loadFromOpenMeteo(); }
+      catch(e){ console.warn('Open-Meteo失败，尝试备用接口2'); }
+    }
+    if(!days){
+      days = await loadFromWttr();
+    }
+
+    if(days){
+      renderWeather(days);
+      saveWeatherCache({ days });
+      if(weatherRetryTimer){
+        clearInterval(weatherRetryTimer);
+        weatherRetryTimer = null;
+      }
+    }
+  }catch(err){
+    weatherLoadFailed = true;
+    weatherBox.innerHTML = `<div style="color:#aaa;line-height:1.6">天气加载失败<br><span style="font-size:12px">请检查网络，30分钟后自动重试</span></div>`;
+    if(!weatherRetryTimer){
+      weatherRetryTimer = setInterval(loadWeather, CONFIG.weatherRetryInterval);
+    }
+  }
+}
+
+// 后台静默更新天气（有缓存时用）
+async function refreshWeatherInBackground(){
+  try{
+    let days = null;
+    if(CONFIG.weather.qweatherKey){
+      try{ days = await loadFromQWeather(); }catch(e){}
+    }
+    if(!days){
+      try{ days = await loadFromOpenMeteo(); }catch(e){}
+    }
+    if(!days){
+      try{ days = await loadFromWttr(); }catch(e){}
+    }
+    if(days){
+      renderWeather(days);
+      saveWeatherCache({ days });
+    }
+  }catch(e){}
+}
+
+loadWeather();
+
+// ========= 低功耗优化 =========
+function handleVisibilityChange(){
+  if(document.hidden){
+    if(coolTimer){ clearInterval(coolTimer); coolTimer = null; }
+    if(weatherRetryTimer){ clearInterval(weatherRetryTimer); weatherRetryTimer = null; }
+  }else{
+    updateLesson();
+    tickCool();
+    if(!coolTimer) coolTimer = setInterval(tickCool, 1000);
+    if(weatherLoadFailed) loadWeather();
+  }
+}
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
+});
+</script>
+</body>
+</html>
